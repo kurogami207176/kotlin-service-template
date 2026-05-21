@@ -1,0 +1,73 @@
+name: build-and-deploy
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+
+      - name: Set up Java
+        uses: actions/setup-java@v5.2.0
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+          cache-dependency-path: app/**/*.gradle*
+
+      - name: Run tests
+        working-directory: app
+        run: ./gradlew --no-daemon test
+
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+      BOOTSTRAP_STACK_NAME: ${{ vars.AWS_BOOTSTRAP_STACK_NAME || 'kotlin-service-template-bootstrap' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6.1.1
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+
+      - name: Log in to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2.1.5
+
+      - name: Resolve bootstrap outputs
+        run: |
+          ECR_REPOSITORY_URI=$(aws cloudformation describe-stacks \
+            --region "$AWS_REGION" \
+            --stack-name "$BOOTSTRAP_STACK_NAME" \
+            --query "Stacks[0].Outputs[?OutputKey=='EcrRepositoryUri'].OutputValue" \
+            --output text)
+          echo "ECR_REPOSITORY_URI=$ECR_REPOSITORY_URI" >> "$GITHUB_ENV"
+
+      - name: Build and push image
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t "$ECR_REPOSITORY_URI:$IMAGE_TAG" app
+          docker push "$ECR_REPOSITORY_URI:$IMAGE_TAG"
+          echo "IMAGE_URI=$ECR_REPOSITORY_URI:$IMAGE_TAG" >> "$GITHUB_ENV"
+
+      - name: Deploy CloudFormation stack
+        run: bin/deploy-service.sh

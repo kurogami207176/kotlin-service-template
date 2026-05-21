@@ -1,0 +1,53 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Deploy the Kotlin hello-world container to Amazon ECS Express mode.
+
+Parameters:
+  ProviderServiceToken:
+    Type: String
+  ImageUri:
+    Type: String
+  ExecutionRoleArn:
+    Type: String
+  InfrastructureRoleArn:
+    Type: String
+  ServiceName:
+    Type: String
+    Default: kotlin-service-template
+  ClusterName:
+    Type: String
+    Default: default
+  ContainerPort:
+    Type: Number
+    Default: 8080
+  Cpu:
+    Type: String
+    Default: '512'
+  Memory:
+    Type: String
+    Default: '1024'
+  HealthCheckPath:
+    Type: String
+    Default: /health
+
+Resources:
+  ExpressService:
+    Type: Custom::ExpressGatewayService
+    Properties:
+      ServiceToken: !Ref ProviderServiceToken
+      ImageUri: !Ref ImageUri
+      ExecutionRoleArn: !Ref ExecutionRoleArn
+      InfrastructureRoleArn: !Ref InfrastructureRoleArn
+      ServiceName: !Ref ServiceName
+      ClusterName: !Ref ClusterName
+      ContainerPort: !Ref ContainerPort
+      Cpu: !Ref Cpu
+      Memory: !Ref Memory
+      HealthCheckPath: !Ref HealthCheckPath
+
+Outputs:
+  ServiceArn:
+    Value: !GetAtt ExpressService.ServiceArn
+  Endpoint:
+    Value: !GetAtt ExpressService.Endpoint
+  HelloUrl:
+    Value: !GetAtt ExpressService.HelloUrl
