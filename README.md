@@ -35,10 +35,12 @@ bin/deploy-bootstrap.sh
 Important bootstrap outputs:
 
 - `GitHubActionsRoleArn` - store this in the repository secret `AWS_DEPLOY_ROLE_ARN`
-- `ServiceStackName` - store this in the repository variable `AWS_BOOTSTRAP_STACK_NAME` if you change the default bootstrap stack name
 - `EcrRepositoryUri`, `ExecutionRoleArn`, `InfrastructureRoleArn`, `ProviderServiceToken` - consumed automatically by `bin/deploy-service.sh`
 
-Also add a repository variable named `AWS_REGION` for the deployment region.
+Also add repository variables:
+
+- `AWS_REGION` - the deployment region
+- `AWS_BOOTSTRAP_STACK_NAME` - optional if you keep the default bootstrap stack name of `kotlin-service-template-bootstrap`
 
 ## Manual service deployment
 
